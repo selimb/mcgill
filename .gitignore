@@ -1,0 +1,5 @@
+# Virtual environment
+env
+
+# Python artifacts
+*.py[cod].ipynb_checkpoints
