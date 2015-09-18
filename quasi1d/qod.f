@@ -31,11 +31,25 @@ C       Make initial grid.
             end do
         end
 C       Initialize field
-        subroutine init(w)
+        subroutine init(w, p)
             use constants
             implicit none
-            real*8
+            real*8, dimension(3, nx), intent(out) :: w
+            real*8, dimension(nx), intent(out) :: p
+            real*8 :: rh0, p0, t0, u0
+            t0 = ttot_in/(1 + 0.5*(g - 1.0)*M_in**2
+            p0 = ptot_in/(1 + 0.5*(g - 1.0)*M_in**2)**(g/(g-1))
+            rho0 = p0/(R*t0)
+            u0 = 0.0
+            for i=1, nx
+                w(1,i) = rho0
+                w(2,i) = rho0*u0
+                rho_e = p/(g - 1)
+                w(3,i) = rho_e/rho
+                p(i) = p0
+
         end
+
         program quasi
             implicit none
             use constants
@@ -50,10 +64,13 @@ C           IMPOSE EXIT STATIC PRESSURE
             integer :: i
             real*8, dimension(nx) :: x, s
             call mkgrid(x, s)
+            real*8, dimension(3, -1:nx+1) :: w
+            real*8, dimension(-1:nx+1) :: p
+
             call init
             open(3, file='bump3dgrid.p3dfmt',form='formatted')
             write(3,*) (x(i),i=1,nx),
-       &               (s(i),i=1,nx)
+     &                 (s(i),i=1,nx)
 C       2. ITERATION LOOP
 
 
