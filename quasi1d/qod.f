@@ -22,7 +22,7 @@ C           Use double precision
             use types, only: dp
             implicit none
 C           Math
-            real(dp), public, parameter :: pi = 4*atan(1.0_8)
+            real(dp), public, parameter :: pi = 4.0_dp*atan(1.0_dp)
 C           Grid constants
             real(dp), public, parameter :: h = 0.025_dp
             real(dp), public, parameter :: t1 = 0.8_dp
@@ -39,12 +39,15 @@ C           BCs
             use types, only: dp
             use constants, only: ptot_in
             implicit none
-            integer, public, parameter :: nx = 40
-            real(dp), public, parameter :: dx = 1.0_dp/nx
-            real(dp), private, parameter :: exit_p_ratio = 0.8_dp
-            real(dp), public, parameter :: exit_p = exit_p_ratio*ptot_in
-            real(dp), public, parameter :: eps = 0.8_dp
+C           User input
             integer, parameter :: flx_scheme = 1
+            integer, public, parameter :: nx = 40
+            real(dp), private, parameter :: exit_p_ratio = 0.8_dp
+            real(dp), public, parameter :: eps = 0.8_dp
+            real(dp), public, parameter :: tol = 1e-15
+C           Calculations
+            real(dp), public, parameter :: dx = 1.0_dp/nx
+            real(dp), public, parameter :: exit_p = exit_p_ratio*ptot_in
         end module
 C       ===============================================================
 C       Initialization
@@ -59,7 +62,6 @@ C       Make initial grid.
         subroutine mkgrid(x, s)
             use input, only: dx
             use constants, only: h, pi, t1, t2
-            implicit none
             real(dp), dimension(:), intent(out) :: x, s
             integer :: n, i
             n = size(x)
@@ -70,23 +72,21 @@ C       Make initial grid.
         end
 C       Initialize field        
         subroutine init_state(prim)
-            use input
-            use constants
-            implicit none
+            use constants, only: g, m_in, ptot_in, R
             real(dp), dimension(:, :), intent(out) :: prim
-            real(dp) :: rh0, p0, t0, u0
-            integer :: n, i
+            real(dp) :: rh0, p0, t0, u0, rho_e, M_term
             n = size(prim, 2)
-            t0 = ttot_in/(1 + 0.5*(g - 1.0)*M_in**2
-            p0 = ptot_in/(1 + 0.5*(g - 1.0)*M_in**2)**(g/(g-1))
+            M_term = ( 1.0_dp + 0.5_dp*(g - 1.0_dp)*M_in**2 )
+            t0 = ttot_in/M_term
+            p0 = ptot_in/( M_term**(g/(g - 1.0_dp)) )
             rho0 = p0/(R*t0)
             u0 = 0
-            rho_e = p/(g - 1)
+            rho_e = p0/(g - 1.0_dp)
             do i = 1, n
                 prim(1, i) = rho0
                 prim(2, i) = u0
                 prim(3, i) = p0
-                prim(4, i) = rho_e/rho
+                prim(4, i) = rho_e/rho0
                 prim(5, i) = sqrt(g*p0/rho0)
             end do
         end
@@ -110,13 +110,14 @@ C       Calculate prim from W
                 u = w(2, i)/rho
                 e = w(3, i)
                 E = e/rho
-                p = (g - 1)*rho*(E - 0.5*u**2)
+                p = (g - 1.0_dp)*rho*(E - 0.5_dp*u**2)
                 prim(1, i) = rho
                 prim(2, i) = u
                 prim(3, i) = p
                 prim(4, i) = e
                 prim(5, i) = sqrt(g*p/rho)
             end do
+        end subroutine
 C       Calculate W from prim
         subroutine calc_w(prim, w)
             real(dp), dimension(:, :), intent(in) :: prim
@@ -136,21 +137,21 @@ C           f(2) = rho*u**2 + p
 C           f(3) = (e + p)*u
             n = size(prim, 2)
             do i=1, n
-                f(1) = prim(1, i)*prim(2, i)
-                f(2) = prim(1)*prim(2)**2 + prim(3)
-                f(3) = (prim(4) + prim(3))*prim(2)
+                f(1, i) = prim(1, i)*prim(2, i)
+                f(2, i) = prim(1, i)*prim(2, i)**2 + prim(3, i)
+                f(3, i) = (prim(4, i) + prim(3, i))*prim(2, i)
             end do
         end subroutine
 C       Calculate Q
         subroutine calc_q(prim, s, q)
             real(dp), dimension(:, :), intent(in) :: prim
-            real(dp), dimension(:), intent(in), :: s
-            real(dp), dimension(3, size(s)), intent(out) :: q
-            n = size(s)
+            real(dp), dimension(size(prim, 2)), intent(in) :: s
+            real(dp), dimension(3, size(prim, 2)), intent(out) :: q
+            n = size(prim, 2)
             do i=2, n
                 q(1, i) = 0
-                q(2, i) = 0
-                q(3, i) = prim(3, i)(s(i) - s(i-1))
+                q(2, i) = prim(3, i)*(s(i) - s(i-1))
+                q(3, i) = 0
             end do
         end subroutine
 C       Calculate maximum eigenvalue
@@ -161,15 +162,16 @@ C       Calculate maximum eigenvalue
         end subroutine
 C       Calculate residuals
         subroutine calc_r(f_edge, s_edge, q, r)
-            real(dp), dimension(:, :), intent(in) :: f_edge, s_edge
-            real(dp), dimension(:, :), intent(in) :: q
-            real(dp), dimension(size(q,1), size(q,2)), intent(out) :: r
+            real(dp), dimension(:, :), intent(in) :: f_edge
+            real(dp), dimension(size(f_edge, 2)), intent(in) :: s_edge
+            real(dp), dimension(3, size(f_edge, 2)), intent(in) :: q
+            real(dp), dimension(3, size(f_edge, 2)), intent(out) :: r
             n = size(q, 2)
             do i = 2, n - 1
             do k = 1, 3
-                r(k, i) = f_edge(k, i)*s_edge(k, i)
-     &                    - f_edge(k, i - 1)*s_edge(k, i -1)
-     &                    + q[k, i]
+                r(k, i) = f_edge(k, i)*s_edge(i)
+     &                    - f_edge(k, i - 1)*s_edge(i -1)
+     &                    + q(k, i)
             end do
             end do
         end subroutine
@@ -179,13 +181,14 @@ C       Calculate error over all residuals
             real(dp) :: err
             err = maxval(r)
         end function
-        end module
+        end module common_calcs
 C       ===============================================================
 C       Schemes for flux evaluation.
 C       ===============================================================
         module flx_schemes
         use types, only: dp
         use input, only: flx_scheme, eps
+        use common_calcs
         implicit integer (i, n)
         contains 
 
@@ -197,13 +200,13 @@ C       Scalar Dissipation
             real(dp) :: u_avg, c_avg, lambda
             n = size(prim, 2)
             do i = 1, n - 1
-                u_avg = 0.5*(prim(2, i) + prim(2, i+1))
-                c_avg = 0.5*(c(i) + c(i+1))
+                u_avg = 0.5_dp*(prim(2, i) + prim(2, i+1))
+                c_avg = 0.5_dp*(prim(5, i) + prim(5, i+1))
                 call calc_lambda(u_avg, c_avg, lambda)
                 do k = 1, 3
-                    f_edge(k, i) = 0.5*(
+                    f_edge(k, i) = 0.5_dp*(
      &                  f(k, i) + f(k, i+1)
-     &                  - eps*lambda*(w(k, i+1) - w(i)))
+     &                  - eps*lambda*(w(k, i+1) - w(k, i)))
                 end do
             end do
         end subroutine
@@ -215,20 +218,26 @@ C       1 : Scalar dissipation
             real(dp), dimension(3,size(prim,2)-1), intent(out) :: f_edge
             select case (flx_scheme)
                 case (1)
-                    call flx_scalar(prim, f_edge)
+                    call flx_scalar(prim, w, f, f_edge)
                 case default
-                    call flx_scalar(prim, f_edge)
+                    call flx_scalar(prim, w, f, f_edge)
             end select
         end subroutine
-        end module
+        end module flx_schemes
 C       ===============================================================
 C       Time stepping
 C       ===============================================================
 C       Calculate residuals
 C       First order euler
+        module timestepping
+        use types, only: dp
+        use input, only: dx
+        use common_calcs
+        use flx_schemes, only: flx_eval
+        implicit integer (i, n)
+        contains 
+
         subroutine euler_xp(prim, s, s_edge, w_n, err)
-            use input
-            implicit none
             real(dp), dimension(:, :), intent(in) :: prim
             real(dp), dimension(size(prim, 2)), intent(in) :: s 
             real(dp), dimension(size(prim,2)-1), intent(out) :: s_edge
@@ -236,12 +245,13 @@ C       First order euler
             real(dp), intent(out) :: err
             real(dp), dimension(3, size(prim, 2)) :: w, f, q, r
             real(dp), dimension(3, size(prim, 2) - 1) :: f_edge
+            real(dp), dimension(size(prim, 2)) :: dt
             real(dp) :: dt_v
 C           TODO calculate DT
             call calc_w(prim, w)
             call calc_f(prim, f)
             call calc_q(prim, s, q)
-            call flx_eval(prim, w, f, c, f_edge)
+            call flx_eval(prim, w, f, f_edge)
             call calc_r(f_edge, s_edge, q, r)
             n = size(prim, 2)
             do i = 2, n-1
@@ -250,7 +260,7 @@ C           TODO calculate DT
                     w_n(k, i) = w(k, i) - dt_v*r(k, i)
                 end do
             end do
-            call calc_err(r, err)
+            err = calc_err(r)
         end subroutine
         end module
 C       ===============================================================
@@ -282,20 +292,21 @@ C       Main
 C       ===============================================================
         program main
         use types, only: dp
-        implicit integer (i, n)
         use constants
         use input, only: nx, tol
+        use init, only: init_state, mkgrid
+        implicit integer (i, n)
         real(dp) :: er
         real(dp), dimension(nx) :: x, s
         real(dp), dimension(5, nx) :: prim
         call mkgrid(x, s)
-        call init(prim)
-        err = 1
-        do while (err > tol)
-            call time_step(prim, s, s_edge, w_n, err)
-            call calc_prim(w_n, prim)
-            call update_bc(prim)
-            err = calc_err
-        end do
+        call init_state(prim)
+C       err = 1
+C       do while (err > tol)
+C           call time_step(prim, s, s_edge, w_n, err)
+C           call calc_prim(w_n, prim)
+C           call update_bc(prim)
+C           err = calc_err
+C       end do
 C       TODO post process
         end program
