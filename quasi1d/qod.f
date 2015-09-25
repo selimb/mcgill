@@ -11,62 +11,78 @@ C           |---o---|---o---|---o ... ---|---o---|
 C               1   1   2   2   3       J-1  J
 C       ===============================================================
 C       ===============================================================
-C       Global variables: constants and input
+C       Global variables: types, constants and inputs
 C       ===============================================================
+        module types
+            implicit none
+C           Use double precision
+            integer, parameter :: dp=kind(0.d0) 
+        end module
         module constants
+            use types, only: dp
             implicit none
 C           Math
-            real*8, public, parameter :: pi = 4*atan(1.0_8)
+            real(dp), public, parameter :: pi = 4*atan(1.0_8)
 C           Grid constants
-            real*8, public, parameter :: h = 0.025
-            real*8, public, parameter :: t1 = 0.8
-            real*8, public, parameter :: t2 = 3
+            real(dp), public, parameter :: h = 0.025_dp
+            real(dp), public, parameter :: t1 = 0.8_dp
+            real(dp), public, parameter :: t2 = 3
 C           Fluid constants
-            real*8, public, parameter :: g = 1.4
-            real*8, public, parameter :: R = 1716
+            real(dp), public, parameter :: g = 1.4_dp
+            real(dp), public, parameter :: R = 1716
 C           BCs
-            real*8, public, parameter :: ttot_in = 530.2
-            real*8, public, parameter :: ptot_in = 2117.0
-            real*8, public, parameter :: M_in = 1.2
+            real(dp), public, parameter :: ttot_in = 530.2_dp
+            real(dp), public, parameter :: ptot_in = 2117
+            real(dp), public, parameter :: M_in = 1.2_dp
         end module
         module input
-            use constants
+            use types, only: dp
+            use constants, only: ptot_in
             implicit none
             integer, public, parameter :: nx = 40
-            real*8, public, parameter :: dx = 1.0/nx
-            real*8, private, parameter :: exit_p_ratio = 0.8
-            real*8, public, parameter :: exit_p = 0.8*ptot_in
-            real*8, public, parameter :: eps = 0.8
+            real(dp), public, parameter :: dx = 1.0_dp/nx
+            real(dp), private, parameter :: exit_p_ratio = 0.8_dp
+            real(dp), public, parameter :: exit_p = exit_p_ratio*ptot_in
+            real(dp), public, parameter :: eps = 0.8_dp
             integer, parameter :: flx_scheme = 1
         end module
 C       ===============================================================
 C       Initialization
 C       ===============================================================
+        module init
+        use types, only: dp
+        implicit integer (i, n)
+        public mkgrid, init_state
+        contains 
+
 C       Make initial grid.
         subroutine mkgrid(x, s)
-            use input
-            use constants
+            use input, only: dx
+            use constants, only: h, pi, t1, t2
             implicit none
-            real*8, dimension(nx), intent(out) :: x, s
-            integer :: i
-            do i=1, nx
+            real(dp), dimension(:), intent(out) :: x, s
+            integer :: n, i
+            n = size(x)
+            do i=1, n
                 x(i) = i*dx
-                s(i) = 1 - h*(sin(pi*x(i)**t1))**t2
+                s(i) = 1.0_dp - h*(sin(pi*x(i)**t1))**t2
             end do
         end
 C       Initialize field        
-        subroutine init(prim)
+        subroutine init_state(prim)
             use input
             use constants
             implicit none
-            real*8, dimension(5, nx), intent(out) :: prim
-            real*8 :: rh0, p0, t0, u0
+            real(dp), dimension(:, :), intent(out) :: prim
+            real(dp) :: rh0, p0, t0, u0
+            integer :: n, i
+            n = size(prim, 2)
             t0 = ttot_in/(1 + 0.5*(g - 1.0)*M_in**2
             p0 = ptot_in/(1 + 0.5*(g - 1.0)*M_in**2)**(g/(g-1))
             rho0 = p0/(R*t0)
-            u0 = 0.0
+            u0 = 0
             rho_e = p/(g - 1)
-            do i=1, nx
+            do i = 1, n
                 prim(1, i) = rho0
                 prim(2, i) = u0
                 prim(3, i) = p0
@@ -74,17 +90,22 @@ C       Initialize field
                 prim(5, i) = sqrt(g*p0/rho0)
             end do
         end
+        end module init
 C       ===============================================================
 C       Helper functions to calculate commonly required quantities
 C       ===============================================================
+        module common_calcs
+        use types, only: dp
+        implicit integer (i, n)
+        contains 
+
 C       Calculate prim from W
         subroutine calc_prim(w, prim)
-            use input
-            use constants
-            implicit none
-            real*8, dimension(3, nx), intent(in) :: w
-            real*8, dimension(5, nx), intent(out) :: prim
-            do i=1, nx
+            use constants, only: g
+            real(dp), dimension(:, :), intent(in) :: w
+            real(dp), dimension(5, size(w, 2)), intent(out) :: prim
+            n = size(w, 2)
+            do i = 1, n
                 rho = w(1, i)
                 u = w(2, i)/rho
                 e = w(3, i)
@@ -96,13 +117,11 @@ C       Calculate prim from W
                 prim(4, i) = e
                 prim(5, i) = sqrt(g*p/rho)
             end do
-C       Calculate W
+C       Calculate W from prim
         subroutine calc_w(prim, w)
-            use input
-            implicit none
-            real*8, dimension(5, nx), intent(in) :: prim
-            real*8, dimension(3, nx), intent(out) :: w
-            do i=1, nx
+            real(dp), dimension(:, :), intent(in) :: prim
+            real(dp), dimension(3, size(prim, 2)), intent(out) :: w
+            do i=1, n
                 w(1, i) = prim(1, i)
                 w(2, i) = prim(1, i)*prim(2, i)
                 w(3, i) = prim(4, i)
@@ -110,14 +129,13 @@ C       Calculate W
         end subroutine
 C       Calculate F
         subroutine calc_f(prim, f)
-            use input
-            implicit none
-            real*8, dimension(5, nx), intent(in) :: prim
-            real*8, dimension(3, nx), intent(out) :: f
+            real(dp), dimension(:, :), intent(in) :: prim
+            real(dp), dimension(3, size(prim, 2)), intent(out) :: f
 C           f(1) = rho*u
 C           f(2) = rho*u**2 + p
 C           f(3) = (e + p)*u
-            do i=1, nx
+            n = size(prim, 2)
+            do i=1, n
                 f(1) = prim(1, i)*prim(2, i)
                 f(2) = prim(1)*prim(2)**2 + prim(3)
                 f(3) = (prim(4) + prim(3))*prim(2)
@@ -125,12 +143,11 @@ C           f(3) = (e + p)*u
         end subroutine
 C       Calculate Q
         subroutine calc_q(prim, s, q)
-            use input
-            implicit none
-            real*8, dimension(5, nx), intent(in) :: prim
-            real*8, intent(in, nx) :: s
-            real*8, dimension(3, nx), intent(out) :: q
-            do i=2, nx
+            real(dp), dimension(:, :), intent(in) :: prim
+            real(dp), dimension(:), intent(in), :: s
+            real(dp), dimension(3, size(s)), intent(out) :: q
+            n = size(s)
+            do i=2, n
                 q(1, i) = 0
                 q(2, i) = 0
                 q(3, i) = prim(3, i)(s(i) - s(i-1))
@@ -138,20 +155,17 @@ C       Calculate Q
         end subroutine
 C       Calculate maximum eigenvalue
         subroutine calc_lambda(u, c, lambda)
-            use input
-            implicit none
-            real*8, intent(in) :: u, c
-            real*8, intent(out) :: lambda
+            real(dp), intent(in) :: u, c
+            real(dp), intent(out) :: lambda
             lambda = max(u, u + c, u - c)
         end subroutine
 C       Calculate residuals
         subroutine calc_r(f_edge, s_edge, q, r)
-            use input
-            implicit none
-            real*8, dimension(3, nx-1), intent(in) :: f_edge, s_edge
-            real*8, dimension(3, nx), intent(in) :: q
-            real*8, dimension(3, nx), intent(out) :: r
-            do i = 2, nx - 1
+            real(dp), dimension(:, :), intent(in) :: f_edge, s_edge
+            real(dp), dimension(:, :), intent(in) :: q
+            real(dp), dimension(size(q,1), size(q,2)), intent(out) :: r
+            n = size(q, 2)
+            do i = 2, n - 1
             do k = 1, 3
                 r(k, i) = f_edge(k, i)*s_edge(k, i)
      &                    - f_edge(k, i - 1)*s_edge(k, i -1)
@@ -160,31 +174,34 @@ C       Calculate residuals
             end do
         end subroutine
 C       Calculate error over all residuals
-        subroutine calc_err(r, err)
-            use input
-            implicit none
-            real*8, dimension(3, nx), intent(in) :: r
-            real*8, intent(out) :: err
+        function calc_err(r) result(err)
+            real(dp), dimension(:, :), intent(in) :: r
+            real(dp) :: err
             err = maxval(r)
-        end subroutine
+        end function
+        end module
 C       ===============================================================
 C       Schemes for flux evaluation.
 C       ===============================================================
+        module flx_schemes
+        use types, only: dp
+        use input, only: flx_scheme, eps
+        implicit integer (i, n)
+        contains 
+
 C       Scalar Dissipation
-        subroutine flx_scalar(prim, w, f, c, f_edge)
-            use input
-            implicit none
-            real*8, dimension(5, nx), intent(in) :: prim
-            real*8, dimension(3, nx), intent(in) :: w, f
-            real*8, dimension(nx), intent(in) :: c
-            real*8, dimension(3, nx-1), intent(out) :: f_edge
-            real*8 :: u_avg, c_avg, lambda
-            do i = 1, nx - 1
+        subroutine flx_scalar(prim, w, f, f_edge)
+            real(dp), dimension(:, :), intent(in) :: prim
+            real(dp), dimension(3, size(prim, 2)), intent(in) :: w, f
+            real(dp), dimension(3,size(prim,2)-1), intent(out) :: f_edge
+            real(dp) :: u_avg, c_avg, lambda
+            n = size(prim, 2)
+            do i = 1, n - 1
                 u_avg = 0.5*(prim(2, i) + prim(2, i+1))
                 c_avg = 0.5*(c(i) + c(i+1))
-                calc_lambda(u_avg, c_avg, lambda)
+                call calc_lambda(u_avg, c_avg, lambda)
                 do k = 1, 3
-                    f_edge(k, i] = 0.5*(
+                    f_edge(k, i) = 0.5*(
      &                  f(k, i) + f(k, i+1)
      &                  - eps*lambda*(w(k, i+1) - w(i)))
                 end do
@@ -192,18 +209,18 @@ C       Scalar Dissipation
         end subroutine
 C       Choose a flux evaluation scheme based on input
 C       1 : Scalar dissipation
-        subroutine flx_eval(prim, f_edge)
-            use input
-            implicit none
-            real*8, dimension(5, nx), intent(in) :: prim
-            real*8, dimension(3, nx-1), intent(out) :: f_edge
+        subroutine flx_eval(prim, w, f, f_edge)
+            real(dp), dimension(:, :), intent(in) :: prim
+            real(dp), dimension(3, size(prim, 2)), intent(in) :: w, f
+            real(dp), dimension(3,size(prim,2)-1), intent(out) :: f_edge
             select case (flx_scheme)
                 case (1)
-                    flx_scalar(prim, f_edge)
+                    call flx_scalar(prim, f_edge)
                 case default
-                    flx_scalar(prim, f_edge)
+                    call flx_scalar(prim, f_edge)
             end select
         end subroutine
+        end module
 C       ===============================================================
 C       Time stepping
 C       ===============================================================
@@ -212,69 +229,73 @@ C       First order euler
         subroutine euler_xp(prim, s, s_edge, w_n, err)
             use input
             implicit none
-            real*8, dimension(5, nx), intent(in) :: prim
-            real*8, dimension(nx), intent(in) :: s 
-            real*8, dimension(nx-1), intent(out) :: s_edge
-            real*8, dimension(3, nx), intent(out) :: w_n
-            real*8, intent(out) :: err
-            real*8, dimension(3, nx) :: w, f, q, r
-            real*8, dimension(3, nx-1) :: f_edge
-            real*8 :: dt_v
-            calc_w(prim, w)
-            calc_f(prim, f)
-            calc_q(prim, s, q)
-            flx_eval(prim, w, f, c, f_edge)
-            calc_r(f_edge, s_edge, q, r)
-            do i = 2, nx-1
+            real(dp), dimension(:, :), intent(in) :: prim
+            real(dp), dimension(size(prim, 2)), intent(in) :: s 
+            real(dp), dimension(size(prim,2)-1), intent(out) :: s_edge
+            real(dp), dimension(3, size(prim, 2)), intent(out) :: w_n
+            real(dp), intent(out) :: err
+            real(dp), dimension(3, size(prim, 2)) :: w, f, q, r
+            real(dp), dimension(3, size(prim, 2) - 1) :: f_edge
+            real(dp) :: dt_v
+C           TODO calculate DT
+            call calc_w(prim, w)
+            call calc_f(prim, f)
+            call calc_q(prim, s, q)
+            call flx_eval(prim, w, f, c, f_edge)
+            call calc_r(f_edge, s_edge, q, r)
+            n = size(prim, 2)
+            do i = 2, n-1
                 dt_v = dt(i)/(s(i)*dx)
                 do k = 1, 3
                     w_n(k, i) = w(k, i) - dt_v*r(k, i)
                 end do
             end do
-            calc_err(r, err)
+            call calc_err(r, err)
         end subroutine
+        end module
 C       ===============================================================
 C       Boundary Conditions
 C       ===============================================================
-        subroutine update_inlet(prim, c, m)
-            use input
-            real*8, dimension(5), intent(in) :: prim
-            real*8 :: m
+        module bc
+        use types, only: dp
+        implicit integer (i, n)
+        contains 
+
+        subroutine update_inlet(prim)
+            real(dp), dimension(:, :), intent(out) :: prim
+            real(dp) :: m
+C       TODO
         end subroutine
-        subroutine update_outlet(prim, c, m)
-            use input
+        subroutine update_outlet(prim)
+            real(dp), dimension(:, :), intent(out) :: prim
+            real(dp) :: m
+C       TODO
         end subroutine
         subroutine update_bc(prim)
-            use input
-            real*8, dimension(5, nx), intent(out) :: nx
-            real*8 :: u, c, m
-            calc_c
-            u = prim(2, 1)
+            real(dp), dimension(:, :), intent(out) :: prim
+            call update_inlet(prim)
+            call update_outlet(prim)
         end subroutine
+        end module
 C       ===============================================================
 C       Main
 C       ===============================================================
         program main
-            implicit none
-            use constants
-            use input
-C       1. INITIALIZE
-C           IMPOSE EXIT STATIC PRESSURE
-            integer :: i, idx
-            real*8 :: tol, er
-            real*8, dimension(nx) :: x, s
-            real*8, dimension(5, nx) :: prim
-            real*8, dimension(3, nx-1) :: f
-            call mkgrid(x, s)
-            call init(prim)
-            er = 1
-            do while (er > tol)
-                time_step(prim, s, s_edge, w_n, err)
-                calc_prim(w_n, prim)
-                update_bc(prim)
-                er = calc_err
-            end do
-C           post process
-
-
+        use types, only: dp
+        implicit integer (i, n)
+        use constants
+        use input, only: nx, tol
+        real(dp) :: er
+        real(dp), dimension(nx) :: x, s
+        real(dp), dimension(5, nx) :: prim
+        call mkgrid(x, s)
+        call init(prim)
+        err = 1
+        do while (err > tol)
+            call time_step(prim, s, s_edge, w_n, err)
+            call calc_prim(w_n, prim)
+            call update_bc(prim)
+            err = calc_err
+        end do
+C       TODO post process
         end program
