@@ -41,10 +41,12 @@ C           BCs
             implicit none
 C           User input
             integer, parameter :: flx_scheme = 1
+            integer, parameter :: timestep_scheme = 1
             integer, public, parameter :: nx = 40
             real(dp), private, parameter :: exit_p_ratio = 0.8_dp
             real(dp), public, parameter :: eps = 0.8_dp
             real(dp), public, parameter :: tol = 1e-15
+            real(dp), public, parameter :: cfl = 0.8
 C           Calculations
             real(dp), public, parameter :: dx = 1.0_dp/nx
             real(dp), public, parameter :: exit_p = exit_p_ratio*ptot_in
@@ -52,9 +54,9 @@ C           Calculations
 C       ===============================================================
 C       Initialization
 C       ===============================================================
-        module init
+        module setup
         use types, only: dp
-        implicit integer (i, n)
+        implicit none
         public mkgrid, init_state
         contains 
 
@@ -72,9 +74,10 @@ C       Make initial grid.
         end
 C       Initialize field        
         subroutine init_state(prim)
-            use constants, only: g, m_in, ptot_in, R
+            use constants, only: g, m_in, ptot_in, ttot_in, R
             real(dp), dimension(:, :), intent(out) :: prim
-            real(dp) :: rh0, p0, t0, u0, rho_e, M_term
+            real(dp) :: rho0, p0, t0, u0, rho_e, M_term
+            integer :: i, n
             n = size(prim, 2)
             M_term = ( 1.0_dp + 0.5_dp*(g - 1.0_dp)*M_in**2 )
             t0 = ttot_in/M_term
@@ -90,13 +93,13 @@ C       Initialize field
                 prim(5, i) = sqrt(g*p0/rho0)
             end do
         end
-        end module init
+        end module setup
 C       ===============================================================
 C       Helper functions to calculate commonly required quantities
 C       ===============================================================
         module common_calcs
         use types, only: dp
-        implicit integer (i, n)
+        implicit none
         contains 
 
 C       Calculate prim from W
@@ -104,6 +107,8 @@ C       Calculate prim from W
             use constants, only: g
             real(dp), dimension(:, :), intent(in) :: w
             real(dp), dimension(5, size(w, 2)) :: prim
+            real(dp) :: rho, u, p, e
+            integer :: i, n
             n = size(w, 2)
             do i = 1, n
                 rho = w(1, i)
@@ -122,7 +127,9 @@ C       Calculate W from prim
         pure function calc_w(prim) result(w)
             real(dp), dimension(:, :), intent(in) :: prim
             real(dp), dimension(3, size(prim, 2)) :: w
-            do i=1, n
+            integer :: i, n
+            n = size(prim, 2)
+            do i = 1, n
                 w(1, i) = prim(1, i)
                 w(2, i) = prim(1, i)*prim(2, i)
                 w(3, i) = prim(4, i)
@@ -135,6 +142,7 @@ C       Calculate F
 C           f(1) = rho*u
 C           f(2) = rho*u**2 + p
 C           f(3) = (e + p)*u
+            integer :: i, n
             n = size(prim, 2)
             do i=1, n
                 f(1, i) = prim(1, i)*prim(2, i)
@@ -147,6 +155,7 @@ C       Calculate Q
             real(dp), dimension(:, :), intent(in) :: prim
             real(dp), dimension(size(prim, 2)), intent(in) :: s
             real(dp), dimension(3, size(prim, 2)) :: q
+            integer :: i, n
             n = size(prim, 2)
             do i=2, n
                 q(1, i) = 0
@@ -155,7 +164,7 @@ C       Calculate Q
             end do
         end function
 C       Calculate maximum eigenvalue
-        pure function calc_lambda(u, c) result(lambda)
+        elemental function calc_lambda(u, c) result(lambda)
             real(dp), intent(in) :: u, c
             real(dp) :: lambda
             lambda = max(u, u + c, u - c)
@@ -166,6 +175,7 @@ C       Calculate residuals
             real(dp), dimension(size(f_edge, 2)), intent(in) :: s_edge
             real(dp), dimension(3, size(f_edge, 2) + 1), intent(in) :: q
             real(dp), dimension(3, size(f_edge, 2) + 1) :: r
+            integer :: i, k, n
             n = size(q, 2)
             do i = 2, n - 1
             do k = 1, 3
@@ -189,7 +199,7 @@ C       ===============================================================
         use types, only: dp
         use input, only: flx_scheme, eps
         use common_calcs
-        implicit integer (i, n)
+        implicit none
         contains 
 
 C       Scalar Dissipation
@@ -198,6 +208,7 @@ C       Scalar Dissipation
             real(dp), dimension(3, size(prim, 2)), intent(in) :: w, f
             real(dp), dimension(3, size(prim, 2) - 1) :: f_edge
             real(dp) :: u_avg, c_avg, lambda
+            integer :: i, k, n
             n = size(prim, 2)
             do i = 1, n - 1
                 u_avg = 0.5_dp*(prim(2, i) + prim(2, i+1))
@@ -231,12 +242,29 @@ C       Calculate residuals
 C       First order euler
         module timestepping
         use types, only: dp
-        use input, only: dx
+        use input, only: dx, cfl, timestep_scheme
         use common_calcs
         use flx_schemes, only: flx_eval
-        implicit integer (i, n)
+        implicit none
+        private 
+        public timestep
         contains 
 
+C       Euler explicit scheme
+C       ---------------------------------------------------------------
+        pure function euler_xp_dt(prim) result(dt)
+            real(dp), dimension(:, :), intent(in) :: prim
+            real(dp), dimension(size(prim, 2)) :: dt
+            real(dp) :: lambda, u, c
+            integer :: i, n
+            n = size(prim, 2)
+            do i = 1, n
+                u = prim(2, i)
+                c = prim(5, i)
+                lambda = calc_lambda(u, c)
+                dt(i) = dx*cfl/lambda
+            end do
+        end function
         subroutine euler_xp(prim, s, s_edge, w_n, err)
             real(dp), dimension(:, :), intent(in) :: prim
             real(dp), dimension(size(prim, 2)), intent(in) :: s 
@@ -245,10 +273,10 @@ C       First order euler
             real(dp), intent(out) :: err
             real(dp), dimension(3, size(prim, 2)) :: w, f, q, r
             real(dp), dimension(3, size(prim, 2) - 1) :: f_edge
-            real(dp), dimension(size(prim, 2)) :: dt
+            real(dp), dimension(size(prim, 2)) :: dt, lambdas
             real(dp) :: dt_v
-C           TODO calculate DT
-
+            integer :: i, k, n
+            dt = euler_xp_dt(prim)
             w = calc_w(prim)
             f = calc_f(prim)
             q = calc_q(prim, s)
@@ -263,13 +291,20 @@ C           TODO calculate DT
             end do
             err = calc_err(r)
         end subroutine
+        subroutine timestep(prim, s, s_edge, w_n, err)
+            real(dp), dimension(:, :), intent(in) :: prim
+            real(dp), dimension(size(prim, 2)), intent(in) :: s 
+            real(dp), dimension(size(prim,2)-1), intent(out) :: s_edge
+            real(dp), dimension(3, size(prim, 2)), intent(out) :: w_n
+            real(dp), intent(out) :: err
+        end subroutine
         end module
 C       ===============================================================
 C       Boundary Conditions
 C       ===============================================================
         module bc
         use types, only: dp
-        implicit integer (i, n)
+        implicit none
         contains 
 
         subroutine update_inlet(prim)
@@ -295,8 +330,8 @@ C       ===============================================================
         use types, only: dp
         use constants
         use input, only: nx, tol
-        use init, only: init_state, mkgrid
-        implicit integer (i, n)
+        use setup, only: init_state, mkgrid
+        implicit none
         real(dp) :: er
         real(dp), dimension(nx) :: x, s
         real(dp), dimension(5, nx) :: prim
