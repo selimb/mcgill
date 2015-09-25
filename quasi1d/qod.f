@@ -100,10 +100,10 @@ C       ===============================================================
         contains 
 
 C       Calculate prim from W
-        subroutine calc_prim(w, prim)
+        pure function calc_prim(w) result(prim)
             use constants, only: g
             real(dp), dimension(:, :), intent(in) :: w
-            real(dp), dimension(5, size(w, 2)), intent(out) :: prim
+            real(dp), dimension(5, size(w, 2)) :: prim
             n = size(w, 2)
             do i = 1, n
                 rho = w(1, i)
@@ -117,21 +117,21 @@ C       Calculate prim from W
                 prim(4, i) = e
                 prim(5, i) = sqrt(g*p/rho)
             end do
-        end subroutine
+        end function
 C       Calculate W from prim
-        subroutine calc_w(prim, w)
+        pure function calc_w(prim) result(w)
             real(dp), dimension(:, :), intent(in) :: prim
-            real(dp), dimension(3, size(prim, 2)), intent(out) :: w
+            real(dp), dimension(3, size(prim, 2)) :: w
             do i=1, n
                 w(1, i) = prim(1, i)
                 w(2, i) = prim(1, i)*prim(2, i)
                 w(3, i) = prim(4, i)
             end do
-        end subroutine
+        end function
 C       Calculate F
-        subroutine calc_f(prim, f)
+        pure function calc_f(prim) result(f)
             real(dp), dimension(:, :), intent(in) :: prim
-            real(dp), dimension(3, size(prim, 2)), intent(out) :: f
+            real(dp), dimension(3, size(prim, 2)) :: f
 C           f(1) = rho*u
 C           f(2) = rho*u**2 + p
 C           f(3) = (e + p)*u
@@ -141,31 +141,31 @@ C           f(3) = (e + p)*u
                 f(2, i) = prim(1, i)*prim(2, i)**2 + prim(3, i)
                 f(3, i) = (prim(4, i) + prim(3, i))*prim(2, i)
             end do
-        end subroutine
+        end function
 C       Calculate Q
-        subroutine calc_q(prim, s, q)
+        pure function calc_q(prim, s) result(q)
             real(dp), dimension(:, :), intent(in) :: prim
             real(dp), dimension(size(prim, 2)), intent(in) :: s
-            real(dp), dimension(3, size(prim, 2)), intent(out) :: q
+            real(dp), dimension(3, size(prim, 2)) :: q
             n = size(prim, 2)
             do i=2, n
                 q(1, i) = 0
                 q(2, i) = prim(3, i)*(s(i) - s(i-1))
                 q(3, i) = 0
             end do
-        end subroutine
+        end function
 C       Calculate maximum eigenvalue
-        subroutine calc_lambda(u, c, lambda)
+        pure function calc_lambda(u, c) result(lambda)
             real(dp), intent(in) :: u, c
-            real(dp), intent(out) :: lambda
+            real(dp) :: lambda
             lambda = max(u, u + c, u - c)
-        end subroutine
+        end function
 C       Calculate residuals
-        subroutine calc_r(f_edge, s_edge, q, r)
+        pure function calc_r(f_edge, s_edge, q) result(r)
             real(dp), dimension(:, :), intent(in) :: f_edge
             real(dp), dimension(size(f_edge, 2)), intent(in) :: s_edge
-            real(dp), dimension(3, size(f_edge, 2)), intent(in) :: q
-            real(dp), dimension(3, size(f_edge, 2)), intent(out) :: r
+            real(dp), dimension(3, size(f_edge, 2) + 1), intent(in) :: q
+            real(dp), dimension(3, size(f_edge, 2) + 1) :: r
             n = size(q, 2)
             do i = 2, n - 1
             do k = 1, 3
@@ -174,9 +174,9 @@ C       Calculate residuals
      &                    + q(k, i)
             end do
             end do
-        end subroutine
+        end function
 C       Calculate error over all residuals
-        function calc_err(r) result(err)
+        pure function calc_err(r) result(err)
             real(dp), dimension(:, :), intent(in) :: r
             real(dp) :: err
             err = maxval(r)
@@ -193,36 +193,36 @@ C       ===============================================================
         contains 
 
 C       Scalar Dissipation
-        subroutine flx_scalar(prim, w, f, f_edge)
+        pure function flx_scalar(prim, w, f) result (f_edge)
             real(dp), dimension(:, :), intent(in) :: prim
             real(dp), dimension(3, size(prim, 2)), intent(in) :: w, f
-            real(dp), dimension(3,size(prim,2)-1), intent(out) :: f_edge
+            real(dp), dimension(3, size(prim, 2) - 1) :: f_edge
             real(dp) :: u_avg, c_avg, lambda
             n = size(prim, 2)
             do i = 1, n - 1
                 u_avg = 0.5_dp*(prim(2, i) + prim(2, i+1))
                 c_avg = 0.5_dp*(prim(5, i) + prim(5, i+1))
-                call calc_lambda(u_avg, c_avg, lambda)
+                lambda = calc_lambda(u_avg, c_avg)
                 do k = 1, 3
                     f_edge(k, i) = 0.5_dp*(
      &                  f(k, i) + f(k, i+1)
      &                  - eps*lambda*(w(k, i+1) - w(k, i)))
                 end do
             end do
-        end subroutine
+        end function
 C       Choose a flux evaluation scheme based on input
 C       1 : Scalar dissipation
-        subroutine flx_eval(prim, w, f, f_edge)
+        pure function flx_eval(prim, w, f) result (f_edge)
             real(dp), dimension(:, :), intent(in) :: prim
             real(dp), dimension(3, size(prim, 2)), intent(in) :: w, f
-            real(dp), dimension(3,size(prim,2)-1), intent(out) :: f_edge
+            real(dp), dimension(3,size(prim,2)-1) :: f_edge
             select case (flx_scheme)
                 case (1)
-                    call flx_scalar(prim, w, f, f_edge)
+                    f_edge = flx_scalar(prim, w, f)
                 case default
-                    call flx_scalar(prim, w, f, f_edge)
+                    f_edge = flx_scalar(prim, w, f)
             end select
-        end subroutine
+        end function
         end module flx_schemes
 C       ===============================================================
 C       Time stepping
@@ -248,11 +248,12 @@ C       First order euler
             real(dp), dimension(size(prim, 2)) :: dt
             real(dp) :: dt_v
 C           TODO calculate DT
-            call calc_w(prim, w)
-            call calc_f(prim, f)
-            call calc_q(prim, s, q)
-            call flx_eval(prim, w, f, f_edge)
-            call calc_r(f_edge, s_edge, q, r)
+
+            w = calc_w(prim)
+            f = calc_f(prim)
+            q = calc_q(prim, s)
+            f_edge = flx_eval(prim, w, f)
+            r = calc_r(f_edge, s_edge, q)
             n = size(prim, 2)
             do i = 2, n-1
                 dt_v = dt(i)/(s(i)*dx)
