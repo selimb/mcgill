@@ -69,7 +69,7 @@ C       Make initial grid.
             integer :: n, i
             n = size(x)
             do i=1, n
-                x(i) = i*dx
+                x(i) = (i-0.5)*dx
                 s(i) = 1.0_dp - h*(sin(pi*x(i)**t1))**t2
             end do
         end
@@ -415,11 +415,11 @@ C       ---------------------------------------------------------------
                 dt(i) = dx*cfl/lambda_max
             end do
         end function
-        subroutine euler_xp(prim, s, err)
+        subroutine euler_xp(prim, s, r)
             real(dp), dimension(:, :), intent(inout) :: prim
             real(dp), dimension(size(prim, 2)), intent(in) :: s 
-            real(dp), intent(out) :: err
-            real(dp), dimension(3, size(prim, 2)) :: w, f, q, r, w_n
+            real(dp), dimension(3, size(prim, 2)), intent(out) :: r
+            real(dp), dimension(3, size(prim, 2)) :: w, f, q, w_n
             real(dp), dimension(3, size(prim, 2) - 1) :: f_edge
             real(dp), dimension(size(prim, 2)) :: dt, lambdas
             real(dp) :: dt_v
@@ -447,18 +447,17 @@ C           Update BCs
 C           Update state vector
             prim(:, 2:n-1) = calc_prim(w_n(:, 2:n-1))
 C           Calculate residual
-            err = calc_err(r)
         end subroutine
-        subroutine timestep(prim, s, err)
+        subroutine timestep(prim, s, r)
             use input, only: timestep_scheme
             real(dp), dimension(:, :), intent(inout) :: prim
             real(dp), dimension(size(prim, 2)), intent(in) :: s 
-            real(dp), intent(out) :: err
+            real(dp), dimension(3, size(prim, 2)), intent(out) :: r
             select case (timestep_scheme)
                 case (1)
-                    call euler_xp(prim, s, err)
+                    call euler_xp(prim, s, r)
                 case default
-                    call euler_xp(prim, s, err)
+                    call euler_xp(prim, s, r)
             end select
         end subroutine
         end module
@@ -470,22 +469,25 @@ C       ===============================================================
         use constants
         use input, only: nx, tol
         use setup, only: init_state, mkgrid
+        use common_calcs, only: calc_err
         use timestepping, only: timestep
         implicit none
-        integer :: iter, i, k, n
-        real(dp) :: err
-        real(dp), parameter :: max_iter = 10000
         real(dp), dimension(nx) :: x, s
         real(dp), dimension(5, nx) :: prim
+        real(dp) :: err
+        real(dp), dimension(3, nx) :: r
+        integer :: iter, i, k, n
         character(len=40), parameter :: fmt_ = 'EN20.8)'
         character(len=40) :: fmt1 = '(' // fmt_
         character(len=40) :: fmt5 = '(5' // fmt_
+        real(dp), parameter :: max_iter = 10000
         call mkgrid(x, s)
         call init_state(prim)
         err = 1
         iter = 1
         do while (err > tol .and. iter < max_iter)
-            call timestep(prim, s, err)
+            call timestep(prim, s, r)
+            err = calc_err(r)
             iter = iter + 1
         end do
         n = size(x)
