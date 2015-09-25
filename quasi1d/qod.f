@@ -78,26 +78,89 @@ C       Initialize field
             use constants, only: gam, M_in, ptot_in, ttot_in, Rgas
             use input, only: p_exit
             real(dp), dimension(:, :), intent(out) :: prim
-            real(dp) :: rho0, p0, t0, u0, rho_e, M_term
+            real(dp) :: rho, p, t, u, c, e, M_term
             integer :: i, n
             n = size(prim, 2)
-            M_term = ( 1.0_dp + 0.5_dp*(gam - 1.0_dp)*M_in**2 )
-            t0 = ttot_in/M_term
-            p0 = ptot_in/( M_term**(gam/(gam - 1.0_dp)) )
-            rho0 = p0/(Rgas*t0)
-            u0 = 0
-            rho_e = p0/(gam - 1.0_dp)
+            M_term = ( 1.0 + 0.5*(gam - 1.0)*M_in**2 )
+            t = ttot_in/M_term
+            p = ptot_in/( M_term**(gam/(gam - 1.0)) )
+            rho = p/(Rgas*t)
+            c = sqrt(gam*p/rho)
+            u = M_in*c
+            e = rho*(0.5*u**2 + p/(rho*(gam - 1)))
+            write(*,*) 't0'
+            write(*,*) t
+            write(*,*) 'p0'
+            write(*,*) p
+            write(*,*) 'p_exit'
+            write(*,*) p_exit
+            write(*,*) 'rho'
+            write(*,*) rho
+            write(*,*) 'u'
+            write(*,*) u
+            write(*,*) 'e'
+            write(*,*) e
+            write(*,*) 'c'
+            write(*,*) c
             do i = 1, n
-                prim(1, i) = rho0
-                prim(2, i) = u0
-                prim(3, i) = p0
-                prim(4, i) = rho_e/rho0
-                prim(5, i) = sqrt(gam*p0/rho0)
+                prim(1, i) = rho
+                prim(2, i) = u
+                prim(3, i) = p
+                prim(4, i) = e
+                prim(5, i) = c
             end do
 C           Impose static pressure
             prim(3, n) = p_exit
+            prim(4, n) = rho*(0.5*u**2 + p_exit/(rho*(gam - 1)))
+            prim(5, n) = sqrt(gam*p_exit/rho)
         end
         end module setup
+C       ===============================================================
+C       Utility functions
+C       ===============================================================
+        module utils
+        use types, only: dp
+        implicit none
+        contains
+
+        subroutine writeall(w, f, q, f_edge, r)
+            real(dp), dimension(:, :), intent(in) :: w, f, q, f_edge, r
+            integer :: i, n
+            write(*, *) 'W1'
+            write(*, *) (w(1, i), i=1,n) 
+            write(*, *) 'W2'
+            write(*, *) (w(2, i), i=1,n) 
+            write(*, *) 'W3'
+            write(*, *) (w(3, i), i=1,n) 
+            write(*, *) 'F1'
+            write(*, *) (f(1, i), i=1,n) 
+            write(*, *) 'F2'
+            write(*, *) (f(2, i), i=1,n) 
+            write(*, *) 'F3'
+            write(*, *) (f(3, i), i=1,n) 
+            write(*, *) 'Q2'
+            write(*, *) (q(2, i), i=1,n)
+            write(*, *) 'Fedge1'
+            write(*, *) (f_edge(1, i), i=1,n) 
+            write(*, *) 'Fedge2'
+            write(*, *) (f_edge(2, i), i=1,n) 
+            write(*, *) 'Fedge3'
+            write(*, *) (f_edge(3, i), i=1,n) 
+            write(*, *) 'r1'
+            write(*, *) (r(1, i), i=1,n) 
+            write(*, *) 'r2'
+            write(*, *) (r(2, i), i=1,n) 
+            write(*, *) 'r3'
+            write(*, *) (r(3, i), i=1,n) 
+            write(*, *) ''
+            write(*, *) ''
+            write(*, *) ''
+            write (*, *) 'Iteration complete'
+            write(*, *) ''
+            write(*, *) ''
+            write(*, *) ''
+        end subroutine
+        end module
 C       ===============================================================
 C       Helper functions to calculate commonly required quantities
 C       ===============================================================
@@ -118,8 +181,7 @@ C       Calculate prim from W
                 rho = w(1, i)
                 u = w(2, i)/rho
                 e = w(3, i)
-                E = e/rho
-                p = (gam - 1.0_dp)*rho*(E - 0.5_dp*u**2)
+                p = (gam - 1.0)*rho*(e/rho - 0.5*u**2)
                 prim(1, i) = rho
                 prim(2, i) = u
                 prim(3, i) = p
@@ -151,7 +213,7 @@ C           f(3) = (e + p)*u
             do i=1, n
                 f(1, i) = prim(1, i)*prim(2, i)
                 f(2, i) = prim(1, i)*prim(2, i)**2 + prim(3, i)
-                f(3, i) = (prim(4, i) + prim(3, i))*prim(2, i)
+                f(3, i) = prim(2, i)*(prim(4, i) + prim(3, i))
             end do
         end function
 C       Calculate Q
@@ -181,11 +243,11 @@ C       Calculate residuals
             real(dp), dimension(3, size(s)) :: r
             real(dp), dimension(size(s)-1) :: s_edge
             integer :: i, k, n
-            n = size(q, 2)
-            do i = 1, n - 1
-                s_edge(i) = 0.5_dp*(s(i) + s(i + 1))
+            n = size(f_edge, 2)
+            do i = 1, n
+                s_edge(i) = 0.5*(s(i) + s(i + 1))
             end do
-            do i = 2, n-1
+            do i = 2, n
             do k = 1, 3
                 r(k, i) = f_edge(k, i)*s_edge(i)
      &                    - f_edge(k, i - 1)*s_edge(i - 1)
@@ -219,11 +281,11 @@ C       Scalar Dissipation
             integer :: i, k, n
             n = size(prim, 2)
             do i = 1, n - 1
-                u_avg = 0.5_dp*(prim(2, i) + prim(2, i+1))
-                c_avg = 0.5_dp*(prim(5, i) + prim(5, i+1))
+                u_avg = 0.5*(prim(2, i) + prim(2, i+1))
+                c_avg = 0.5*(prim(5, i) + prim(5, i+1))
                 lambda_max = calc_lambda_max(u_avg, c_avg)
                 do k = 1, 3
-                    f_edge(k, i) = 0.5_dp*(
+                    f_edge(k, i) = 0.5*(
      &                  f(k, i) + f(k, i+1)
      &                  - eps*lambda_max*(w(k, i+1) - w(k, i)))
                 end do
@@ -269,7 +331,6 @@ C       ===============================================================
             real(dp), dimension(:, :), intent(inout) :: prim
             real(dp), dimension(size(prim, 2)), intent(in) :: dt
             real(dp), dimension(3) :: lambdas, R
-            real(dp), parameter :: p5 = 0.5_dp
             real(dp) :: rho_m, u_m, p_m, e_m, T_m, c_m, M_m, dt_dx_m
             real(dp) :: rhodiff, udiff, pdiff, cdiff
             real(dp) :: drho, du, dp
@@ -287,9 +348,9 @@ C       ===============================================================
             pdiff = p_m - prim(3, m_1)
             cdiff = c_m - prim(5, m_1)
 C           Compute eigenvalues
-            lambdas(1) = p5*dt_dx_m*udiff
-            lambdas(2) = p5*dt_dx_m*(udiff + cdiff)
-            lambdas(3) = p5*dt_dx_m*(udiff - cdiff)
+            lambdas(1) = 0.5*dt_dx_m*udiff
+            lambdas(2) = 0.5*dt_dx_m*(udiff + cdiff)
+            lambdas(3) = 0.5*dt_dx_m*(udiff - cdiff)
 C           Compute characteristic relations
             R(1) = -lambdas(1)*(rhodiff - pdiff/(c_m**2))
             R(2) = -lambdas(2)*(rhodiff + rho_m*c_m*udiff)
@@ -298,7 +359,7 @@ C           Compute exit mach number
             M_m = udiff/cdiff
 C           Compute dp
             if (M_m > 1) then
-                dp = p5*(R(2) + R(3))
+                dp = 0.5*(R(2) + R(3))
             else
                 dp = 0
             end if 
@@ -310,7 +371,7 @@ C           Update flow propeties
             u_m = u_m + du
             p_m = p_m + dp
             t_m = p_m/(rho_m*Rgas)
-            e_m = rho_m*(cv*t_m + p5*u_m**2)
+            e_m = rho_m*(cv*t_m + 0.5*u_m**2)
             c_m = sqrt(gam*p_m/rho_m)
         end subroutine
         subroutine update_bc(prim, dt)
@@ -368,6 +429,7 @@ C           Compute time step
             w = calc_w(prim)
             f = calc_f(prim)
             q = calc_q(prim, s)
+            n = size(f, 2)
 C           Compute flux across edges
             f_edge = flx_eval(prim, w, f)
 C           Compute residual
@@ -412,7 +474,7 @@ C       ===============================================================
         implicit none
         integer :: iter, i, k, n
         real(dp) :: err
-        real(dp), parameter :: max_iter = 100
+        real(dp), parameter :: max_iter = 10000
         real(dp), dimension(nx) :: x, s
         real(dp), dimension(5, nx) :: prim
         character(len=40), parameter :: fmt_ = 'EN20.8)'
@@ -421,14 +483,14 @@ C       ===============================================================
         call mkgrid(x, s)
         call init_state(prim)
         err = 1
-        iter = 0
+        iter = 1
         do while (err > tol .and. iter < max_iter)
             call timestep(prim, s, err)
             iter = iter + 1
         end do
         n = size(x)
         open(10, file='output')
-        write(10,*) 'vars=x,s,rho,u,p,e,c'
+        write(10,*) 'x s rho u p e c'
         do i = 1, n
             write(10, fmt1, advance='no') x(i)
             write(10, fmt1, advance='no') s(i)
