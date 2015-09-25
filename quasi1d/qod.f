@@ -388,9 +388,16 @@ C           Calculate residual
             err = calc_err(r)
         end subroutine
         subroutine timestep(prim, s, err)
+            use input, only: timestep_scheme
             real(dp), dimension(:, :), intent(inout) :: prim
             real(dp), dimension(size(prim, 2)), intent(in) :: s 
             real(dp), intent(out) :: err
+            select case (timestep_scheme)
+                case (1)
+                    call euler_xp(prim, s, err)
+                case default
+                    call euler_xp(prim, s, err)
+            end select
         end subroutine
         end module
 C       ===============================================================
@@ -403,14 +410,32 @@ C       ===============================================================
         use setup, only: init_state, mkgrid
         use timestepping, only: timestep
         implicit none
+        integer :: iter, i, k, n
         real(dp) :: err
+        real(dp), parameter :: max_iter = 100
         real(dp), dimension(nx) :: x, s
         real(dp), dimension(5, nx) :: prim
+        character(len=40), parameter :: fmt_ = 'EN20.8)'
+        character(len=40) :: fmt1 = '(' // fmt_
+        character(len=40) :: fmt5 = '(5' // fmt_
         call mkgrid(x, s)
         call init_state(prim)
         err = 1
-        do while (err > tol)
+        iter = 0
+        do while (err > tol .and. iter < max_iter)
             call timestep(prim, s, err)
+            iter = iter + 1
         end do
+        n = size(x)
+        open(10, file='output')
+        write(10,*) 'vars=x,s,rho,u,p,e,c'
+        do i = 1, n
+            write(10, fmt1, advance='no') x(i)
+            write(10, fmt1, advance='no') s(i)
+            write(10, fmt5, advance='no') (prim(k, i), k=1,5)
+            write(10, *) ''
+        end do
+        write (*, *) iter
+        write (*, *) err
 C       TODO post process
         end program
