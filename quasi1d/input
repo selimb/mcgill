@@ -1,0 +1,7 @@
+flx_scheme=1
+timestep_scheme=1
+nx=40
+p_exit_ratio=0.8
+eps=0.8
+tol=1e-15
+cfl=0.8
