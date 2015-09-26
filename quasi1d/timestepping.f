@@ -3,7 +3,7 @@ C       Time stepping
 C       ===============================================================
         module timestepping
         use types, only: dp
-        use inputs, only: dx, cfl, timestep_scheme
+        use inputs, only: params
         use common_calcs
         use flx_schemes, only: flx_eval
         use bc, only: update_bc
@@ -24,7 +24,7 @@ C       ---------------------------------------------------------------
                 u = prim(2, i)
                 c = prim(5, i)
                 lambda_max = calc_lambda_max(u, c)
-                dt(i) = dx*cfl/lambda_max
+                dt(i) = params%dx*params%cfl/lambda_max
             end do
         end function
         subroutine euler_xp(prim, s, r)
@@ -49,7 +49,7 @@ C           Compute residual
 C           Update W
             n = size(prim, 2)
             do i = 2, n-1
-                dt_v = dt(i)/(s(i)*dx)
+                dt_v = dt(i)/(s(i)*params%dx)
                 do k = 1, 3
                     w_n(k, i) = w(k, i) - dt_v*r(k, i)
                 end do
@@ -61,11 +61,10 @@ C           Update state vector
 C           Calculate residual
         end subroutine
         subroutine timestep(prim, s, r)
-            use inputs, only: timestep_scheme
             real(dp), dimension(:, :), intent(inout) :: prim
             real(dp), dimension(size(prim, 2)), intent(in) :: s
             real(dp), dimension(3, size(prim, 2)), intent(out) :: r
-            select case (timestep_scheme)
+            select case (params%timestep_scheme)
                 case (1)
                     call euler_xp(prim, s, r)
                 case default

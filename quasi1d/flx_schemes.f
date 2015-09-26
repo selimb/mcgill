@@ -3,7 +3,7 @@ C       Schemes for flux evaluation.
 C       ===============================================================
         module flx_schemes
         use types, only: dp
-        use inputs, only: flx_scheme, eps
+        use inputs, only: params
         use common_calcs
         implicit none
         contains
@@ -23,7 +23,7 @@ C       Scalar Dissipation
                 do k = 1, 3
                     f_edge(k, i) = 0.5*(
      &                  f(k, i) + f(k, i+1)
-     &                  - eps*lambda_max*(w(k, i+1) - w(k, i)))
+     &                  - params%eps*lambda_max*(w(k, i+1) - w(k, i)))
                 end do
             end do
         end function
@@ -33,7 +33,7 @@ C       1 : Scalar dissipation
             real(dp), dimension(:, :), intent(in) :: prim
             real(dp), dimension(3, size(prim, 2)), intent(in) :: w, f
             real(dp), dimension(3,size(prim,2)-1) :: f_edge
-            select case (flx_scheme)
+            select case (params%flx_scheme)
                 case (1)
                     f_edge = flx_scalar(prim, w, f)
                 case default

@@ -3,7 +3,7 @@ C       Boundary Conditions
 C       ===============================================================
         module bc
         use types, only: dp
-        use inputs, only: dx
+        use inputs, only: params
         implicit none
         private
         public update_bc
@@ -35,7 +35,7 @@ C       ===============================================================
             p_m = prim(3, m)
             e_m = prim(4, m)
             c_m = prim(5, m)
-            dt_dx_m = dt(m)/dx
+            dt_dx_m = dt(m)/params%dx
             rhodiff = rho_m - prim(1, m_1)
             udiff = u_m - prim(2, m_1)
             pdiff = p_m - prim(3, m_1)

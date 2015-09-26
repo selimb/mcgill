@@ -4,7 +4,7 @@ C       ===============================================================
         program main
         use types, only: dp
         use constants
-        use inputs, only: read_input_file, nx, tol
+        use inputs, only: read_input_file, params
         use setup, only: init_state, mkgrid
         use common_calcs, only: calc_err
         use timestepping, only: timestep
@@ -17,16 +17,16 @@ C       ===============================================================
         character(len=40) :: fmt1 = '(' // fmt_
         character(len=40) :: fmt5 = '(5' // fmt_
         real(dp), parameter :: max_iter = 10000
-        call read_input_file('input')
-        allocate(prim(5, nx))
-        allocate(r(3, nx))
-        allocate(x(nx))
-        allocate(s(nx))
+        call read_input_file('input.namelist')
+        allocate(prim(5, params%nx))
+        allocate(r(3, params%nx))
+        allocate(x(params%nx))
+        allocate(s(params%nx))
         call mkgrid(x, s)
         call init_state(prim)
         err = 1
         iter = 1
-        do while (err > tol .and. iter < max_iter)
+        do while (err > params%tol .and. iter < max_iter)
             call timestep(prim, s, r)
             err = calc_err(r)
             iter = iter + 1

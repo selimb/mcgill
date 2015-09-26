@@ -9,20 +9,20 @@ C       ===============================================================
 
 C       Make initial grid.
         subroutine mkgrid(x, s)
-            use inputs, only: dx
+            use inputs, only: params
             use constants, only: h, pi, t1, t2
             real(dp), dimension(:), intent(out) :: x, s
             integer :: n, i
             n = size(x)
             do i=1, n
-                x(i) = (i-0.5)*dx
+                x(i) = (i-0.5)*params%dx
                 s(i) = 1.0_dp - h*(sin(pi*x(i)**t1))**t2
             end do
         end
 C       Initialize field
         subroutine init_state(prim)
             use constants, only: gam, M_in, ptot_in, ttot_in, Rgas
-            use inputs, only: p_exit
+            use inputs, only: params
             real(dp), dimension(:, :), intent(out) :: prim
             real(dp) :: rho, p, t, u, c, e, M_term
             integer :: i, n
@@ -38,8 +38,8 @@ C       Initialize field
             write(*,*) t
             write(*,*) 'p0'
             write(*,*) p
-            write(*,*) 'p_exit'
-            write(*,*) p_exit
+            write(*,*) 'params%p_exit'
+            write(*,*) params%p_exit
             write(*,*) 'rho'
             write(*,*) rho
             write(*,*) 'u'
@@ -56,8 +56,8 @@ C       Initialize field
                 prim(5, i) = c
             end do
 C           Impose static pressure
-            prim(3, n) = p_exit
-            prim(4, n) = rho*(0.5*u**2 + p_exit/(rho*(gam - 1)))
-            prim(5, n) = sqrt(gam*p_exit/rho)
+            prim(3, n) = params%p_exit
+            prim(4, n) = rho*(0.5*u**2 + params%p_exit/(rho*(gam - 1)))
+            prim(5, n) = sqrt(gam*params%p_exit/rho)
         end
         end module setup
