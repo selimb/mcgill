@@ -10,6 +10,7 @@ C       Main
 C       ===============================================================
         program main
         use types, only: dp
+        use utils, only: write1d
         use constants
         use inputs, only: read_input_file, params
         use setup, only: init_state, mkgrid
@@ -31,11 +32,13 @@ C       ===============================================================
         call mkgrid(x, s)
         call init_state(prim)
         err = 1
-        iter = 1
+        iter = 0
         do while (err > params%tol .and. iter < params%max_iter)
+            iter = iter + 1
+            write(*,*) 'Iteration'
+            write(*,*) iter
             call timestep(prim, s, r)
             err = calc_err(r)
-            iter = iter + 1
         end do
         write(*,*) 'Number of iterations:'
         write(*,*) iter
