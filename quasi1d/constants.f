@@ -7,7 +7,7 @@ C       ===============================================================
 C           Math
             real(dp), public, parameter :: pi = 4.0_dp*atan(1.0_dp)
 C           Grid constants
-            real(dp), public, parameter :: h = 0.025_dp
+            real(dp), public, parameter :: h = 0.15_dp
             real(dp), public, parameter :: t1 = 0.8_dp
             real(dp), public, parameter :: t2 = 3
 C           Fluid constants
@@ -15,7 +15,7 @@ C           Fluid constants
             real(dp), public, parameter :: Rgas = 1716
             real(dp), public, parameter :: cv = Rgas/(gam - 1)
 C           BCs
-            real(dp), public, parameter :: ttot_in = 530.2_dp
+            real(dp), public, parameter :: ttot_in = 531.2_dp
             real(dp), public, parameter :: ptot_in = 2117
             real(dp), public, parameter :: M_in = 1.2_dp
         end module
