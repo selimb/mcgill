@@ -35,8 +35,6 @@ C       ===============================================================
         iter = 0
         do while (err > params%tol .and. iter < params%max_iter)
             iter = iter + 1
-            write(*,*) 'Iteration'
-            write(*,*) iter
             call timestep(prim, s, r)
             err = calc_err(r)
         end do

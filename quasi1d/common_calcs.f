@@ -86,8 +86,8 @@ C       Calculate residuals
             end do
             do i = 2, n - 1
             do k = 1, 3
-                r(k, i) = f_edge(k, i)*s_edge(i)
-     &                    - f_edge(k, i - 1)*s_edge(i - 1)
+                r(k, i) = f_edge(k, i)*s(i)
+     &                    - f_edge(k, i - 1)*s(i - 1)
      &                    - q(k, i)
             end do
             end do
