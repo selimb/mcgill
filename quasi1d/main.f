@@ -1,4 +1,18 @@
 C       ===============================================================
+C       Note on implementation.
+C           We pass around `prim` between functions. This
+C           corresponds
+C           to (rho, u, p e, c), the primitive variables.
+C           Generating W and
+C           F is easy, and the primitive variables are readily 
+C           available when necessary, such as when plotting or
+C           calculating the maximum eigenvalues. 
+C       Picture of grid indices:
+C             node        edge
+C           |---o---|---o---|---o ... ---|---o---|
+C               1   1   2   2   3       J-1  J
+C       ===============================================================
+C       ===============================================================
 C       Main
 C       ===============================================================
         program main
