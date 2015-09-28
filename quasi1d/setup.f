@@ -14,6 +14,7 @@ C       Make initial grid.
             real(dp), dimension(:), intent(out) :: x, s
             integer :: n, i
             n = size(x)
+            write (*,*) pi
             do i=1, n
                 x(i) = (i-0.5)*params%dx
                 s(i) = 1.0_dp - h*(sin(pi*x(i)**t1))**t2
@@ -22,6 +23,7 @@ C       Make initial grid.
 C       Initialize field
         subroutine init_state(prim)
             use constants, only: gam, M_in, ptot_in, ttot_in, Rgas
+            use constants, only: cv
             use inputs, only: params
             real(dp), dimension(:, :), intent(out) :: prim
             real(dp) :: rho, p, t, u, c, e, M_term
@@ -34,20 +36,20 @@ C       Initialize field
             c = sqrt(gam*p/rho)
             u = M_in*c
             e = rho*(0.5*u**2 + p/(rho*(gam - 1)))
-            write(*,*) 't0'
-            write(*,*) t
-            write(*,*) 'p0'
-            write(*,*) p
-            write(*,*) 'params%p_exit'
-            write(*,*) params%p_exit
-            write(*,*) 'rho'
-            write(*,*) rho
-            write(*,*) 'u'
-            write(*,*) u
-            write(*,*) 'e'
-            write(*,*) e
-            write(*,*) 'c'
-            write(*,*) c
+C           write(*,*) 't0'
+C           write(*,*) t
+C           write(*,*) 'p0'
+C           write(*,*) p
+C           write(*,*) 'params%p_exit'
+C           write(*,*) params%p_exit
+C           write(*,*) 'rho'
+C           write(*,*) rho
+C           write(*,*) 'u'
+C           write(*,*) u
+C           write(*,*) 'e'
+C           write(*,*) e
+C           write(*,*) 'c'
+C           write(*,*) c
             do i = 1, n
                 prim(1, i) = rho
                 prim(2, i) = u
@@ -56,8 +58,12 @@ C       Initialize field
                 prim(5, i) = c
             end do
 C           Impose static pressure
-            prim(3, n) = params%p_exit
-            prim(4, n) = rho*(0.5*u**2 + params%p_exit/(rho*(gam - 1)))
-            prim(5, n) = sqrt(gam*params%p_exit/rho)
+            do i = 2, n
+                prim(3, i) = params%p_exit
+                prim(1, i) = params%p_exit/(Rgas*t)
+                prim(5, i) = sqrt(gam*params%p_exit/prim(1, i))
+                prim(2, i) = M_in*prim(5, i)
+                prim(4, i) = prim(1, i)*(cv*t + 0.5*u**2)
+            end do
         end
         end module setup
