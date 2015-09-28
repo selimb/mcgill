@@ -41,14 +41,14 @@ C           Compute time step
             w = calc_w(prim)
             f = calc_f(prim)
             q = calc_q(prim, s)
-            n = size(f, 2)
 C           Compute flux across edges
             f_edge = flx_eval(prim, w, f)
 C           Compute residual
             r = calc_r(s, f_edge, q)
 C           Update W
             n = size(prim, 2)
-            do i = 2, n-1
+C           do i = 2, n - 1
+            do i = 2, n
                 dt_v = dt(i)/(s(i)*params%dx)
                 do k = 1, 3
                     w_n(k, i) = w(k, i) - dt_v*r(k, i)

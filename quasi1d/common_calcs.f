@@ -80,11 +80,11 @@ C       Calculate residuals
             real(dp), dimension(3, size(s)) :: r
             real(dp), dimension(size(s)-1) :: s_edge
             integer :: i, k, n
-            n = size(f_edge, 2)
-            do i = 1, n
+            n = size(s)
+            do i = 1, n - 1
                 s_edge(i) = 0.5*(s(i) + s(i + 1))
             end do
-            do i = 2, n
+            do i = 2, n - 1
             do k = 1, 3
                 r(k, i) = f_edge(k, i)*s_edge(i)
      &                    - f_edge(k, i - 1)*s_edge(i - 1)
