@@ -88,7 +88,7 @@ C       Calculate residuals
             do k = 1, 3
                 r(k, i) = f_edge(k, i)*s_edge(i)
      &                    - f_edge(k, i - 1)*s_edge(i - 1)
-     &                    + q(k, i)
+     &                    - q(k, i)
             end do
             end do
         end function

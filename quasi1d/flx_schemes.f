@@ -1,4 +1,10 @@
 C       ===============================================================
+C       Picture of grid indices:
+C             node        edge
+C           |---o---|---o---|---o ... ---|---o---|
+C               1   1   2   2   3       J-1  J
+C       ===============================================================
+C       ===============================================================
 C       Schemes for flux evaluation.
 C       ===============================================================
         module flx_schemes
@@ -23,7 +29,8 @@ C       Scalar Dissipation
                 do k = 1, 3
                     f_edge(k, i) = 0.5*(
      &                  f(k, i) + f(k, i+1)
-     &                  - params%eps*lambda_max*(w(k, i+1) - w(k, i)))
+     &                  - params%eps*lambda_max*(w(k, i+1) - w(k, i))
+     &              )
                 end do
             end do
         end function
@@ -32,7 +39,7 @@ C       1 : Scalar dissipation
         pure function flx_eval(prim, w, f) result (f_edge)
             real(dp), dimension(:, :), intent(in) :: prim
             real(dp), dimension(3, size(prim, 2)), intent(in) :: w, f
-            real(dp), dimension(3,size(prim,2)-1) :: f_edge
+            real(dp), dimension(3, size(prim, 2) - 1) :: f_edge
             select case (params%flx_scheme)
                 case (1)
                     f_edge = flx_scalar(prim, w, f)

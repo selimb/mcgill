@@ -47,8 +47,7 @@ C           Compute residual
             r = calc_r(s, f_edge, q)
 C           Update W
             n = size(prim, 2)
-C           do i = 2, n - 1
-            do i = 2, n
+            do i = 2, n - 1
                 dt_v = dt(i)/(s(i)*params%dx)
                 do k = 1, 3
                     w_n(k, i) = w(k, i) - dt_v*r(k, i)

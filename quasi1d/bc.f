@@ -49,11 +49,13 @@ C           Compute characteristic relations
             R(2) = -lambdas(2)*(rhodiff + rho_m*c_m*udiff)
             R(3) = -lambdas(3)*(rhodiff - rho_m*c_m*udiff)
 C           Compute exit mach number
-            M_m = udiff/cdiff
+            M_m = (u_m + prim(2, m_1))/(c_m + prim(5, m_1))
 C           Compute dp
             if (M_m > 1) then
+                write(*,*) 'M_m > 1'
                 dp = 0.5*(R(2) + R(3))
             else
+                write(*,*) 'M_m < 1'
                 dp = 0
             end if
 C           Update drho and du
