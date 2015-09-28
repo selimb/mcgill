@@ -30,8 +30,7 @@ C       ===============================================================
         character(len=40), parameter :: fmt_ = 'EN20.8)'
         character(len=40) :: fmt1 = '(' // fmt_
         character(len=40) :: fmt5 = '(5' // fmt_
-        real(dp), parameter :: max_iter = 10000
-        call read_input_file('input.namelist')
+        call read_input_file('flow.prm')
         allocate(prim(5, params%nx))
         allocate(r(3, params%nx))
         allocate(x(params%nx))
@@ -40,11 +39,15 @@ C       ===============================================================
         call init_state(prim)
         err = 1
         iter = 1
-        do while (err > params%tol .and. iter < max_iter)
+        do while (err > params%tol .and. iter < params%max_iter)
             call timestep(prim, s, r)
             err = calc_err(r)
             iter = iter + 1
         end do
+        write(*,*) 'Number of iterations:'
+        write(*,*) iter
+        write(*,*) 'Error'
+        write(*,*) err
         n = size(x)
         open(10, file='output')
         write(10,*) 'x s rho u p e c'
@@ -54,7 +57,5 @@ C       ===============================================================
             write(10, fmt5, advance='no') (prim(k, i), k=1,5)
             write(10, *) ''
         end do
-        write (*, *) iter
-        write (*, *) err
 C       TODO post process
         end program

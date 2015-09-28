@@ -5,4 +5,5 @@
  params%p_exit_ratio=0.8,
  params%eps=0.8,
  params%tol=1e-15,
+ params%max_iter=100000
  params%cfl=0.8/

@@ -12,6 +12,7 @@ C       ===============================================================
                 real(dp) :: p_exit_ratio
                 real(dp) :: eps
                 real(dp) :: tol
+                real(dp) :: max_iter
                 real(dp) :: cfl
 C               Calculated values.
                 real(dp) :: dx
