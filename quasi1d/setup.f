@@ -36,20 +36,6 @@ C       Initialize field
             c = sqrt(gam*p/rho)
             u = M_in*c
             e = rho*(0.5*u**2 + p/(rho*(gam - 1)))
-C           write(*,*) 't0'
-C           write(*,*) t
-C           write(*,*) 'p0'
-C           write(*,*) p
-C           write(*,*) 'params%p_exit'
-C           write(*,*) params%p_exit
-C           write(*,*) 'rho'
-C           write(*,*) rho
-C           write(*,*) 'u'
-C           write(*,*) u
-C           write(*,*) 'e'
-C           write(*,*) e
-C           write(*,*) 'c'
-C           write(*,*) c
             do i = 1, n
                 prim(1, i) = rho
                 prim(2, i) = u
