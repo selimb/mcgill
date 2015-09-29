@@ -14,7 +14,6 @@ C       Make initial grid.
             real(dp), dimension(:), intent(out) :: x, s
             integer :: n, i
             n = size(x)
-            write (*,*) pi
             do i=1, n
                 x(i) = (i-0.5)*params%dx
                 s(i) = 1.0_dp - h*(sin(pi*x(i)**t1))**t2

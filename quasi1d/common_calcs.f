@@ -4,7 +4,7 @@ C       ===============================================================
         module common_calcs
         use types, only: dp
         implicit none
-        contains 
+        contains
 
 C       Calculate prim from W
         pure function calc_prim(w) result(prim)

@@ -19,37 +19,43 @@ C       ===============================================================
         implicit none
         real(dp), dimension(:), allocatable :: x, s
         real(dp), dimension(:, :), allocatable :: prim, r
-        real(dp) :: err
+        real(dp), dimension(:), allocatable :: err
         integer :: iter, i, k, n
         character(len=40), parameter :: fmt_ = 'EN20.8)'
         character(len=40) :: fmt1 = '(' // fmt_
+        character(len=40) :: fmt3 = '(3' // fmt_
         character(len=40) :: fmt5 = '(5' // fmt_
         call read_input_file('flow.prm')
         allocate(prim(5, params%nx))
         allocate(r(3, params%nx))
         allocate(x(params%nx))
         allocate(s(params%nx))
+        allocate(err(0:params%max_iter))
         call mkgrid(x, s)
         call init_state(prim)
-        err = 1
+        err(0) = 1
         iter = 0
-        do while (err > params%tol .and. iter < params%max_iter)
+        do while (err(iter) > params%tol .and. iter < params%max_iter)
             iter = iter + 1
             call timestep(prim, s, r)
-            err = calc_err(r)
+            err(iter) = calc_err(r)
         end do
         write(*,*) 'Number of iterations:'
         write(*,*) iter
         write(*,*) 'Error'
-        write(*,*) err
+        write(*,*) err(iter)
         n = size(x)
-        open(10, file='output')
+        open(10, file='state.csv')
         write(10,*) 'x s rho u p e c'
         do i = 1, n
             write(10, fmt1, advance='no') x(i)
             write(10, fmt1, advance='no') s(i)
+            prim(3, i) = prim(3, i)/ptot_in
             write(10, fmt5, advance='no') (prim(k, i), k=1,5)
             write(10, *) ''
         end do
-C       TODO post process
+        open(20, file='residuals.csv')
+        do i = 1, iter
+            write(20, fmt1) err(i)
+        end do
         end program
