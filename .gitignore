@@ -1,5 +1,8 @@
+# Backup
+*.bak
+
 # Output file
-output
+*.csv
 
 #### joe made this: http://goel.io/joe
 
