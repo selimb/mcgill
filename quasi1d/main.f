@@ -21,10 +21,9 @@ C       ===============================================================
         real(dp), dimension(:, :), allocatable :: prim, r
         real(dp), dimension(:), allocatable :: err
         integer :: iter, i, k, n
-        character(len=40), parameter :: fmt_ = 'EN20.8)'
-        character(len=40) :: fmt1 = '(' // fmt_
-        character(len=40) :: fmt3 = '(3' // fmt_
-        character(len=40) :: fmt5 = '(5' // fmt_
+        character(len=20), parameter :: fmt_ = 'EN20.8)'
+        character(len=22) :: fmt1 = '(' // fmt_
+        character(len=22) :: fmt5 = '(5' // fmt_
         call read_input_file('flow.prm')
         allocate(prim(5, params%nx))
         allocate(r(3, params%nx))
