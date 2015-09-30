@@ -17,7 +17,7 @@ C       ===============================================================
 
         subroutine write2d(X)
             real(dp), dimension(:, :), intent(in) :: X
-            integer :: i, n, k
+            integer :: n, k
             n = size(X, 2)
             do k = 1, 3
                 write(*,*) k

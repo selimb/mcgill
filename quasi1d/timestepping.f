@@ -33,7 +33,7 @@ C       ---------------------------------------------------------------
             real(dp), dimension(3, size(prim, 2)), intent(out) :: r
             real(dp), dimension(3, size(prim, 2)) :: w, f, q, w_n
             real(dp), dimension(3, size(prim, 2) - 1) :: f_edge
-            real(dp), dimension(size(prim, 2)) :: dt, lambdas
+            real(dp), dimension(size(prim, 2)) :: dt
             real(dp) :: dt_v
             integer :: i, k, n
 C           Compute time step
