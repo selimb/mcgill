@@ -22,19 +22,16 @@ C       ===============================================================
             lambdas(2) = u + c
             lambdas(3) = u - c
         end function
-C       Calculate the diagonalizers S^-1*C^-1 and CS
-        pure subroutine calc_diagonalizers(rho, u, c, SCinv, CS)
+
+C       Calculate the S diagonalizer and its inverse
+        pure subroutine calc_S(rho, u, c, S, Sinv)
             real(dp), intent(in) :: rho, u, c
-            real(dp), dimension(3, 3), intent(out) :: SCinv, CS
-            real(dp), dimension(3, 3) :: S, CC, Sinv, Cinv
-            real(dp) :: beta, alpha, c2
+            real(dp), dimension(3, 3), intent(out) :: S, Sinv
+            real(dp) :: beta, alpha
+            beta = gam - 1
+            alpha = 0.5*u**2
             S(:, :) = 0
             Sinv(:, :) = 0
-            CC(:, :) = 0
-            Cinv(:, :) = 0
-            beta = gam - 1
-            c2 = c**2
-            alpha = 0.5*u**2
             S(1, 1) = 1
             S(2, 1) = -u/rho
             S(3, 1) = alpha*beta
@@ -47,6 +44,16 @@ C       Calculate the diagonalizers S^-1*C^-1 and CS
             Sinv(2, 2) = rho
             Sinv(3, 2) = rho*u
             Sinv(3, 3) = 1/beta
+        end subroutine
+
+C       Calculate the C diagonalizer and its inverse
+        pure subroutine calc_C(rho, u, c, CC, Cinv)
+            real(dp), intent(in) :: rho, u, c
+            real(dp), dimension(3, 3), intent(out) :: CC, Cinv
+            real(dp) :: c2
+            c2 = c**2
+            CC(:, :) = 0
+            Cinv(:, :) = 0
             CC(1, 1) = 1
             CC(2, 2) = rho*c
             CC(3, 2) = -rho*c
@@ -60,6 +67,15 @@ C       Calculate the diagonalizers S^-1*C^-1 and CS
             Cinv(1, 3) = 1/(2*c2)
             Cinv(2, 3) = -1/(2*rho*c)
             Cinv(3, 3) = 0.5
+        end subroutine
+
+C       Calculate the diagonalizers S^-1*C^-1 and CS
+        pure subroutine calc_diagonalizers(rho, u, c, SCinv, CS)
+            real(dp), intent(in) :: rho, u, c
+            real(dp), dimension(3, 3), intent(out) :: SCinv, CS
+            real(dp), dimension(3, 3) :: S, CC, Sinv, Cinv
+            call calc_C(rho, u, c, CC, Cinv)
+            call calc_S(rho, u, c, S, Sinv)
             SCinv = matmul(Sinv, Cinv)
             CS = matmul(CC, S)
         end subroutine calc_diagonalizers
@@ -189,10 +205,10 @@ C       ---------------------------------------------------------------
                 sqrhop = sqrt(rhop)
                 u = prim(2, i)
                 up = prim(2, i + 1)
-                e = prim(5, i)
-                ep = prim(5, i + 1)
                 p = prim(3, i)
                 pp = prim(3, i + 1)
+                e = prim(4, i)
+                ep = prim(4, i + 1)
                 c = prim(5, i)
                 cp = prim(5, i + 1)
                 rhoh = sqrho*sqrhop
@@ -200,8 +216,7 @@ C       ---------------------------------------------------------------
                 hh = ( sqrho*((e + p)/rho) + sqrhop*((ep + pp)/rhop))
      &               /(sqrho + sqrhop)
 C               TODO Maybe this is not squared
-C               ch = sqrt((gam - 1)*(hh - 0.5*uh**2))
-                ch = sqrt((gam - 1)*(hh - 0.5*uh*2))
+                ch = sqrt((gam - 1)*(hh - 0.5*uh**2))
                 call calc_diagonalizers(rhoh, uh, ch, SCinv, CS)
 C               Calculate eigenvalues
                 Y(:, :) = 0
@@ -216,10 +231,35 @@ C               Calculate eigenvalues
                     Y(k, k) = lamh(k)
                 end do
 C               Calculate Jacobian and Flux
-                A = abs(calc_jacob(SCinv, Y, CS))
-                f_edge(:, i) = 0.5*(f(:, i) + f(:, i + 1)
-     &                           - matmul(A, w(:, i+1) - w(:, i))
+C               A = abs(calc_jacob(SCinv, Y, CS))
+                A = Y
+                f_edge(:, i) = 0.5*( f(:, i) + f(:, i + 1)
+     &                               - matmul(A, w(:, i+1) - w(:, i))
      &          )
+C               if (i < 5) then
+C                   write(*,*) 'i = '
+C                   write(*,*) i
+C                   write(*,*) 'rhoH'
+C                   write(*,*) rhoh
+C                   write(*,*) 'uH'
+C                   write(*,*) uh
+C                   write(*,*) 'hh'
+C                   write(*,*) hh
+C                   write(*,*) 'ch'
+C                   write(*,*) ch
+C                   write(*,*) 'lamh'
+C                   write(*,*) lamh
+C                   write(*,*) 'Y'
+C                   write(*,*) Y
+C                   write(*,*) 'A'
+C                   write(*,*) A
+C                   write(*,*) 'w'
+C                   write(*,*) w(:, i)
+C                   write(*,*) 'f'
+C                   write(*,*) f(:, i)
+C                   write(*,*) 'f_edge'
+C                   write(*,*) f_edge(:, i)
+C               end if
             end do
         end function
 
