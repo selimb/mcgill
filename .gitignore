@@ -1,3 +1,6 @@
+# Testing Notebooks
+test*.ipynb
+
 # Input file
 flow.prm
 
