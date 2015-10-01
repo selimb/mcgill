@@ -3,24 +3,47 @@ C       Boundary Conditions
 C       ===============================================================
         module bc
         use types, only: dp
+        use constants, only: gam, Rgas, cv
         use inputs, only: params
         implicit none
         private
         public update_bc
         contains
 
-        subroutine update_inlet(prim_in, dt)
+        subroutine update_inlet(prim, dt)
             use constants, only: M_in
-            real(dp), dimension(:), intent(inout) :: prim_in
+            real(dp), dimension(:, :), intent(inout) :: prim
             real(dp), intent(in) :: dt
+            real(dp) :: gamm, gamp, gamm_p, astar, dp_du, lambda, du, T
+            real(dp) :: rho1, rho2, u1, u2, p1, p2, c1, c2
             if (M_in > 1) then
                 return
             end if
-            write (*,*) "Not Implemented."
-            call exit(1)
+            rho1 = prim(1, 1)
+            rho2 = prim(1, 2)
+            u1 = prim(2, 1)
+            u2 = prim(2, 2)
+            p1 = prim(3, 1)
+            p2 = prim(3, 2)
+            c1 = prim(5, 1)
+            c2 = prim(5, 2)
+            gamm = gam - 1
+            gamp = gam + 1
+            gamm_p = (gamm/gamp)
+            astar = 2*gam*(gamm_p)*cv*ttot_in
+            dp_du = ptot_in*(gam/gamm)
+     &          * (1 - (gamm_p)*(u1/astar)**2)**(1/gamm)
+     &          * (-2*(gamm_p)*u1/(astar**2))
+            lambda = 0.5*(u2 + u1 - c2 - c1)*params%cfl/(u1 + c1)
+            du = -lambda*(p2 - p1 - rho1*c1*(u2 - u1))/(dp_du - rho1*c1)
+            prim(2, 1) = u1 + du
+            T = ttot_in*(1 - gamm_p*(u1/astar)**2)
+            prim(3, 1) = ptot_in*(t/ttot_in)**(gam/gamm)
+            prim(1, 1) = prim(3, 1)/(Rgas*T)
+            prim(4, 1) = prim(1, 1)*(cv*T + 0.5*prim(2, 1)**2)
+            prim(5, 1) = sqrt(gam*prim(3, 1)/prim(1, 1))
         end subroutine
         subroutine update_outlet(prim, dt)
-            use constants, only: gam, Rgas, cv
             real(dp), dimension(:, :), intent(inout) :: prim
             real(dp), dimension(size(prim, 2)), intent(in) :: dt
             real(dp), dimension(3) :: lambdas, R
