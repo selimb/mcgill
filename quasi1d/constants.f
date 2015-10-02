@@ -18,4 +18,7 @@ C           BCs
             real(dp), public, parameter :: ttot_in = 531.2_dp
             real(dp), public, parameter :: ptot_in = 2117
             real(dp), public, parameter :: M_in = 0.2_dp
+C           Used in inlet BC
+            real(dp), public, parameter ::
+     &          astar = 2*gam*((gam - 1)/(gam + 1))*cv*ttot_in
         end module
