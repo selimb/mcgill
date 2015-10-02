@@ -17,5 +17,5 @@ C           Fluid constants
 C           BCs
             real(dp), public, parameter :: ttot_in = 531.2_dp
             real(dp), public, parameter :: ptot_in = 2117
-            real(dp), public, parameter :: M_in = 1.2_dp
+            real(dp), public, parameter :: M_in = 0.2_dp
         end module
