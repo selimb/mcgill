@@ -59,61 +59,63 @@ C           Update state vector
             prim(:, 2:n-1) = calc_prim(w_n(:, 2:n-1))
         end subroutine
 
-C       Runge Kutta Fourth-Order
+C       Jameson Runge Kutta
 C       ---------------------------------------------------------------
-        subroutine rk_step(prim, w0, s, dt_2,
-     &          prim_new, w_new, r_new
-     &  )
-            real(dp), dimension(:, :), intent(in) :: prim
-            real(dp), dimension(3, size(prim, 2)), intent(in) :: w0
-            real(dp), dimension(size(prim, 2)), intent(in) :: s, dt_2
-            real(dp), dimension(size(prim, 1), size(prim, 2)),
-     &          intent(out) :: prim_new
-            real(dp), dimension(3, size(prim, 2)), intent(out) ::
-     &          w_new, r_new
-            real(dp), dimension(3, size(prim, 2)) :: w, f, q
-            real(dp), dimension(3, size(prim, 2) - 1) :: f_edge
-            integer :: i, k, n
-            n = size(prim, 2)
-            w = calc_w(prim)
-            f = calc_f(prim)
-            q = calc_q(prim, s)
-            f_edge = flx_eval(prim, w, f)
-            r_new = calc_r(s, f_edge, q)
-            do i = 2, n - 1
-                do k = 1, 3
-                    w_new(k, i) = w0(k, i) - dt_2(i)*r_new(k, i)
-                end do
-            end do
-            w_new(:, 1) = w(:, 1)
-            w_new(:, n) = w(:, n)
-            prim_new = calc_prim(w_new)
-        end subroutine
-        subroutine rk4(prim, s, r_new)
+        subroutine jameson(prim, s, r_new)
             real(dp), dimension(:, :), intent(inout) :: prim
             real(dp), dimension(size(prim, 2)), intent(in) :: s
             real(dp), dimension(3, size(prim, 2)), intent(out) :: r_new
-            real(dp), dimension(3, size(prim, 2)) :: w0, w1, w2, w3,
-     &          w_new
-            real(dp), dimension(3, size(prim, 2)) :: r1, r2, r3
+            real(dp), dimension(3, size(prim, 2)) :: w0
             real(dp), dimension(size(prim, 1), size(prim, 2)) ::
-     &          prim1, prim2, prim3
-            real(dp), dimension(size(prim, 2)) :: dt, dt_2
-            integer :: n
+     &          prim_new
+            real(dp), dimension(size(prim, 2)) :: dt, dt_dx
+            integer ::  i, k, n
             n = size(prim, 2)
             dt = calc_dt(prim)
-            dt_2 = 0.5*dt
+            dt_dx = dt/params%dx
             w0 = calc_w(prim)
-            call rk_step(prim, w0, dt_2, s, prim1, w1, r1)
-            call rk_step(prim1, w0, dt_2, s, prim2, w2, r2)
-            call rk_step(prim2, w0, dt_2, s, prim3, w3, r3)
-            w_new = (1/6)*(w0 + 2*w1 + 2*w2 + w3)
-            r_new = (1/6)*(r1 + r2 + r3)
+            prim_new(:, :) = prim(:, :)
+            do k = 1, 4
+                call jameson_step(prim_new, k*1.0_dp)
+            end do
+C           Calculate residual from difference of densities
+            do i = 1, n
+                r_new(1, i) = (s(i)/dt_dx(i))*(
+     &              prim_new(1, i) - prim(1, i)
+     &          )
+            end do
             call update_bc(prim, dt)
-            prim(:, 2:n-1) = calc_prim(w_new(:, 2:n-1))
+            prim(:, 2:n-1) = prim_new(:, 2:n-1)
+
+            contains
+
+            subroutine jameson_step(prim, k)
+                real(dp), dimension(:, :), intent(inout) :: prim
+                real(dp), intent(in) :: k
+                real(dp), dimension(3, size(prim, 2)) :: w, f, q, r
+                real(dp), dimension(3, size(prim, 2) - 1) :: f_edge
+                real(dp) :: alpha
+                integer :: i, j, n
+                n = size(prim, 2)
+                w = calc_w(prim)
+                f = calc_f(prim)
+                q = calc_q(prim, s)
+                f_edge = flx_eval(prim, w, f)
+                r = calc_r(s, f_edge, q)
+                alpha = (1.0_dp)/(5.0_dp - k)
+                do i = 2, n - 1
+                    do j = 1, 3
+                        w(j, i) = w0(j, i) - alpha*dt_dx(i)*r(j, i)
+                    end do
+                end do
+                prim = calc_prim(w)
+            end subroutine
         end subroutine
+
+C       ---------------------------------------------------------------
 C       Choose a timestepping scheme based on input
 C       1 : Euler Explicit
+C       2 : Jameson
         subroutine timestep(prim, s, r)
             real(dp), dimension(:, :), intent(inout) :: prim
             real(dp), dimension(size(prim, 2)), intent(in) :: s
@@ -122,7 +124,7 @@ C       1 : Euler Explicit
                 case (1)
                     call euler_xp(prim, s, r)
                 case (2)
-                    call rk4(prim, s, r)
+                    call jameson(prim, s, r)
                 case default
                     call euler_xp(prim, s, r)
             end select

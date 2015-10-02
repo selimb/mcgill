@@ -96,6 +96,6 @@ C       Calculate error over all residuals
         pure function calc_err(r) result(err)
             real(dp), dimension(:, :), intent(in) :: r
             real(dp) :: err
-            err = maxval(r)
+            err = maxval(abs(r(1, :)))
         end function
         end module common_calcs
