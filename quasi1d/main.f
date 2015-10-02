@@ -19,7 +19,8 @@ C       ===============================================================
         implicit none
         real(dp), dimension(:), allocatable :: x, s
         real(dp), dimension(:, :), allocatable :: prim, r
-        real(dp), dimension(:), allocatable :: err
+        real(dp), dimension(:), allocatable :: err, time
+        real(dp) :: start, finish
         integer :: iter, i, k, n
         character(len=20), parameter :: fmt_ = 'EN20.8)'
         character(len=22) :: fmt1 = '(' // fmt_
@@ -30,14 +31,18 @@ C       ===============================================================
         allocate(x(params%nx))
         allocate(s(params%nx))
         allocate(err(0:params%max_iter))
+        allocate(time(params%max_iter))
         call mkgrid(x, s)
         call init_state(prim)
         err(0) = 1
         iter = 0
+        call cpu_time(start)
         do while (err(iter) > params%tol .and. iter < params%max_iter)
             iter = iter + 1
             call timestep(prim, s, r)
             err(iter) = calc_err(r)
+            call cpu_time(finish)
+            time(iter) = finish - start
         end do
         write(*,*) 'Number of iterations:'
         write(*,*) iter
@@ -56,5 +61,9 @@ C       ===============================================================
         open(20, file='residuals.csv')
         do i = 1, iter
             write(20, fmt1) err(i)
+        end do
+        open(20, file='time.csv')
+        do i = 1, iter
+            write(20, fmt1) time(i)
         end do
         end program

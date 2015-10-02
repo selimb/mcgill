@@ -306,6 +306,7 @@ C       4 : Roe
                 case (5)
                     f_edge = flx_roe(prim, w, f)
                 case default
+                    write(*,*) 'Invalid Scheme'
                     f_edge = flx_scalar(prim, w, f)
             end select
         end function
