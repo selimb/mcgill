@@ -10,10 +10,9 @@ C       ===============================================================
         public update_bc
         contains
 
-        subroutine update_inlet(prim, dt)
-            use constants, only: M_in
+        subroutine update_inlet(prim)
+            use constants, only: M_in, ptot_in, ttot_in
             real(dp), dimension(:, :), intent(inout) :: prim
-            real(dp), intent(in) :: dt
             real(dp) :: gamm, gamp, gamm_p, astar, dp_du, lambda, du, T
             real(dp) :: rho1, rho2, u1, u2, p1, p2, c1, c2
             if (M_in > 1) then
@@ -101,7 +100,7 @@ C           Update flow propeties
             real(dp), dimension(size(prim, 2)), intent(in) :: dt
             integer :: n
             n = size(prim, 2)
-            call update_inlet(prim(:, 1), dt(1))
+            call update_inlet(prim)
             call update_outlet(prim, dt)
         end subroutine
         end module
